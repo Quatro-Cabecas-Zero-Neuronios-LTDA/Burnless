@@ -41,13 +41,14 @@
     "typescript-7": "npm:typescript@7.0.2"
   },
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "start": "expo start --go",
+    "android": "expo start --go --android",
+    "ios": "expo start --go --ios",
     "web": "expo start --web",
     "lint": "expo lint",
     "typecheck": "node ../../node_modules/typescript-7/bin/tsc --noEmit",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "start:dev-client": "expo start --dev-client"
   },
   "private": true
 }

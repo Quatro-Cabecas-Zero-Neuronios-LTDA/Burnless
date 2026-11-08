@@ -205,14 +205,16 @@ A imagem de produção roda como usuário não-root, sem `/docs`, com HEALTHCHEC
 
 ```bash
 pnpm install                               # na raiz do repositório
-cp apps/mobile/.env.example apps/mobile/.env   # ajuste EXPO_PUBLIC_API_URL
-pnpm mobile                                # expo start → escaneie o QR code
+pnpm mobile                                # expo start (Expo Go) → escaneie o QR code ou aperte "a"
+pnpm --filter mobile start:dev-client      # quando tiver um development build instalado
 pnpm typecheck                             # TypeScript 7 (tsc nativo)
 pnpm lint
 ```
 
-`EXPO_PUBLIC_API_URL`: no celular físico, use o **IP da sua máquina na rede local**
-(ex.: `http://192.168.0.10:8000`). No emulador Android, use `http://10.0.2.2:8000`.
+**URL da API:** em desenvolvimento, o app usa sozinho o IP da máquina que roda o Metro
+(o mesmo do QR code), na porta 8000. Funciona no emulador e no celular na mesma rede Wi-Fi.
+Só defina `EXPO_PUBLIC_API_URL` em `apps/mobile/.env` para forçar outra URL (staging ou `--tunnel`).
+Nunca use `localhost`: no Android, ele aponta para o próprio aparelho.
 
 ### Builds do app (EAS)
 
