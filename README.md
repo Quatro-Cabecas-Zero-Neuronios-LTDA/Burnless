@@ -159,8 +159,9 @@ burnless/
 │   ├── alembic/                     # migrações
 │   ├── tests/
 │   └── Dockerfile                   # multi-stage: dev | prod
-├── docker-compose.yml               # dev (hot reload)
-└── docker-compose.prod.yml          # produção
+├── compose.yaml                     # base comum (db, api, migrate)
+├── compose.override.yaml            # dev: carregado sozinho (bind mount, reload)
+└── compose.production.yaml          # produção: só as diferenças
 ```
 
 ---
@@ -180,7 +181,7 @@ burnless/
 
 ```bash
 docker compose up --build                  # API em http://localhost:8000 (docs em /docs)
-docker compose exec api alembic upgrade head
+docker compose --profile tools run --rm migrate   # aplica as migrações (alembic upgrade head)
 
 # qualidade
 docker compose run --rm api uv run pytest
@@ -191,15 +192,22 @@ docker compose run --rm api uv run lint-imports   # regras de arquitetura
 
 Dependências: `docker compose run --rm api uv add <pacote>` (atualiza `pyproject.toml` e `uv.lock`).
 
+**Como os arquivos do Compose se combinam** (padrão recomendado pela Docker):
+- `compose.yaml` tem a base comum.
+- `compose.override.yaml` entra **automaticamente** no `docker compose up` e adiciona o que é de dev.
+- `compose.production.yaml` é passado com `-f` e só sobrescreve o que muda em produção.
+- O profile `tools` guarda tarefas avulsas (o `migrate`), que não sobem com o `up`.
+
 ### Backend em produção
 
 ```bash
 cp backend/.env.example backend/.env       # troque senhas e DATABASE_URL
-docker compose -f docker-compose.prod.yml --env-file backend/.env up -d --build
-docker compose -f docker-compose.prod.yml --env-file backend/.env run --rm api alembic upgrade head
+alias dcp='docker compose -f compose.yaml -f compose.production.yaml --env-file backend/.env'
+dcp up -d --build
+dcp --profile tools run --rm migrate
 ```
 
-A imagem de produção roda como usuário não-root, sem `/docs`, com HEALTHCHECK em `/api/v1/health`.
+Em produção: a API roda como usuário não-root, sem `/docs`, com HEALTHCHECK em `/api/v1/health`, `restart: unless-stopped` e o banco sem porta exposta. As variáveis de banco são obrigatórias.
 
 ### Mobile
 

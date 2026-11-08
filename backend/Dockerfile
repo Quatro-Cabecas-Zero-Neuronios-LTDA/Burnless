@@ -13,7 +13,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # ----------------------------------------------------------------- dev
-# O código entra por bind mount (docker-compose.yml). O venv fica em /opt/venv
+# O código entra por bind mount (compose.override.yaml). O venv fica em /opt/venv
 # para não ser escondido pelo volume. Roda com o UID/GID do host para os arquivos
 # criados no bind mount (uv.lock, caches) não ficarem com dono root.
 FROM base AS dev

@@ -11,6 +11,7 @@
     "typecheck": "pnpm --filter mobile typecheck",
     "api:up": "docker compose up --build",
     "api:down": "docker compose down",
-    "api:test": "docker compose run --rm api uv run pytest"
+    "api:test": "docker compose run --rm api uv run pytest",
+    "api:migrate": "docker compose --profile tools run --rm migrate"
   }
 }

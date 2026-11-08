@@ -1,0 +1,30 @@
+# PRODUÇÃO: só as diferenças em relação ao compose.yaml (sem bind mount, sem porta do banco).
+# Uso:
+#   docker compose -f compose.yaml -f compose.production.yaml --env-file backend/.env up -d --build
+#   docker compose -f compose.yaml -f compose.production.yaml --env-file backend/.env --profile tools run --rm migrate
+name: burnless-prod
+
+x-database-url: &database-url ${DATABASE_URL:?defina DATABASE_URL}
+
+services:
+  db:
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:?defina POSTGRES_DB}
+
+  api:
+    build:
+      target: prod
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      DATABASE_URL: *database-url
+
+  migrate:
+    build:
+      target: prod
+    environment:
+      APP_ENV: production
+      DATABASE_URL: *database-url

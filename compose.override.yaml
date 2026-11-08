@@ -1,0 +1,27 @@
+# DESENVOLVIMENTO: carregado automaticamente por cima do compose.yaml.
+# Uso: docker compose up --build
+x-dev-build: &dev-build
+  target: dev
+  args:
+    UID: ${UID:-1000}
+    GID: ${GID:-1000}
+
+services:
+  db:
+    ports:
+      - "5432:5432" # acesso pelo host (DBeaver, psql…)
+
+  api:
+    build: *dev-build
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      APP_ENV: development
+    volumes:
+      - ./backend:/app # código ao vivo + uvicorn --reload
+
+  migrate:
+    build: *dev-build
+    volumes:
+      - ./backend:/app # usa as migrações que você acabou de gerar
