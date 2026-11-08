@@ -1,0 +1,16 @@
+{
+  "name": "burnless",
+  "private": true,
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": ">=26"
+  },
+  "scripts": {
+    "mobile": "pnpm --filter mobile start",
+    "lint": "pnpm --filter mobile lint",
+    "typecheck": "pnpm --filter mobile typecheck",
+    "api:up": "docker compose up --build",
+    "api:down": "docker compose down",
+    "api:test": "docker compose run --rm api uv run pytest"
+  }
+}

@@ -1,0 +1,5 @@
+packages:
+  - apps/*
+
+# React Native/Metro funcionam melhor com node_modules "hoisted" (sem symlinks).
+nodeLinker: hoisted

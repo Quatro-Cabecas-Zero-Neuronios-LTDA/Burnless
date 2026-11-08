@@ -87,17 +87,19 @@ Exemplo:
 ## 🧰 Stack
 
 **Mobile**
-- [React Native](https://reactnative.dev/) + [Expo](https://expo.dev/)
-- [Tailwind CSS](https://tailwindcss.com/) (via NativeWind)
-- [pnpm](https://pnpm.io/) como gerenciador de pacotes
+- [React Native](https://reactnative.dev/) 0.88 + [Expo](https://expo.dev/) SDK 58 (expo-router), TypeScript
+- [Tailwind CSS](https://tailwindcss.com/) 3.4 via [NativeWind](https://www.nativewind.dev/) 4.2 (o NativeWind 5, que usa Tailwind 4, ainda é RC)
+- TypeScript 6.0 para editor/ESLint e **TypeScript 7** para o `typecheck` (o typescript-eslint ainda não suporta o TS 7)
+- ESLint 9 (o `eslint-config-expo` ainda não roda no ESLint 10) + Prettier
+- [pnpm](https://pnpm.io/) 12 como gerenciador de pacotes (Node 26 LTS)
 
 **Backend**
-- Python (API REST — ex.: FastAPI)
+- Python 3.15 + FastAPI, SQLAlchemy 2.1 (async), Alembic, PostgreSQL 18, uv
 - Modelos de ML (scikit-learn) para sono e sobrecarga
 - Integração com LLM para a IA Conselheira
 
 **Infra**
-- Docker para facilitar o deploy
+- Docker (só backend): compose de dev com hot reload + imagem multi-stage de produção
 - EAS (Expo Application Services) para builds mobile
 
 ---
@@ -120,19 +122,45 @@ Exemplo:
                                                    └─────────────┘
 ```
 
-### Estrutura de pastas (proposta)
+### Camadas (DDD horizontal)
+
+Backend e mobile seguem as mesmas quatro camadas. A dependência sempre aponta
+para dentro (para o domínio):
+
+```
+presentation  →  infrastructure  →  application  →  domain
+(rotas/telas)    (banco, HTTP, LLM)  (casos de uso)    (regras de negócio puras)
+```
+
+- **domain**: entidades, value objects e interfaces de repositório. Não conhece framework nenhum.
+- **application**: casos de uso (um por intenção do usuário) e *ports* para serviços externos.
+- **infrastructure**: implementações dos ports (SQLAlchemy, cliente HTTP, LLM, modelos de ML).
+- **presentation**: FastAPI (backend) e telas/rotas (mobile). Uma *composition root* liga cada interface à sua implementação.
+
+Novos contextos (`checkins`, `notes`, `sleep`, `advisor`…) entram como subpasta **dentro de cada camada**.
+No backend, o `import-linter` quebra o build se alguém violar a regra.
+
+### Estrutura de pastas
 
 ```
 burnless/
-├── apps/
-│   └── mobile/          # App Expo / React Native
-├── backend/
-│   ├── api/             # Rotas e controllers
-│   ├── domain/          # Regras de negócio
-│   ├── ml/              # Modelos de sono e sobrecarga
-│   └── advisor/         # IA Conselheira + guardrails
-├── docker-compose.yml
-└── README.md
+├── apps/mobile/                     # App Expo / React Native (pnpm workspace)
+│   └── src/
+│       ├── app/                     # rotas expo-router (finas)
+│       ├── domain/  application/  infrastructure/  presentation/
+│       └── di/                      # composition root
+├── backend/                         # API FastAPI (uv)
+│   ├── src/burnless/
+│   │   ├── domain/                  # shared/: Entity, ValueObject, Repository
+│   │   ├── application/             # shared/: UseCase, UnitOfWork · health/
+│   │   ├── infrastructure/          # config/, database/
+│   │   ├── presentation/api/        # dependencies.py (DI), v1/
+│   │   └── main.py
+│   ├── alembic/                     # migrações
+│   ├── tests/
+│   └── Dockerfile                   # multi-stage: dev | prod
+├── docker-compose.yml               # dev (hot reload)
+└── docker-compose.prod.yml          # produção
 ```
 
 ---
@@ -140,34 +168,59 @@ burnless/
 ## 🚀 Como rodar localmente
 
 ### Pré-requisitos
-- Node.js 20+ e pnpm
-- Python 3.11+
-- Docker (opcional)
-- App **Expo Go** no celular ou um emulador
+- **Node.js 26 LTS** e **pnpm 12**: `mise use -g node@26 pnpm@12.18.0` (o Node 26 não traz mais o corepack)
+- **Docker** com Compose (o backend roda só em container, então Python no host é opcional)
+- App **Expo Go** no celular, ou um *development build* (veja abaixo)
+
+> **Por que só o backend fica em Docker?** O app mobile não roda em container:
+> o Metro precisa falar com o celular/emulador pela rede local. Em produção, o app
+> vira um binário (`.apk`/`.aab`/`.ipa`) gerado pelo **EAS Build** e publicado nas lojas.
+
+### Backend (Docker)
+
+```bash
+docker compose up --build                  # API em http://localhost:8000 (docs em /docs)
+docker compose exec api alembic upgrade head
+
+# qualidade
+docker compose run --rm api uv run pytest
+docker compose run --rm api uv run ruff check .
+docker compose run --rm api uv run mypy
+docker compose run --rm api uv run lint-imports   # regras de arquitetura
+```
+
+Dependências: `docker compose run --rm api uv add <pacote>` (atualiza `pyproject.toml` e `uv.lock`).
+
+### Backend em produção
+
+```bash
+cp backend/.env.example backend/.env       # troque senhas e DATABASE_URL
+docker compose -f docker-compose.prod.yml --env-file backend/.env up -d --build
+docker compose -f docker-compose.prod.yml --env-file backend/.env run --rm api alembic upgrade head
+```
+
+A imagem de produção roda como usuário não-root, sem `/docs`, com HEALTHCHECK em `/api/v1/health`.
 
 ### Mobile
 
 ```bash
-cd apps/mobile
-pnpm install
-pnpm expo start
+pnpm install                               # na raiz do repositório
+cp apps/mobile/.env.example apps/mobile/.env   # ajuste EXPO_PUBLIC_API_URL
+pnpm mobile                                # expo start → escaneie o QR code
+pnpm typecheck                             # TypeScript 7 (tsc nativo)
+pnpm lint
 ```
 
-### Backend
+`EXPO_PUBLIC_API_URL`: no celular físico, use o **IP da sua máquina na rede local**
+(ex.: `http://192.168.0.10:8000`). No emulador Android, use `http://10.0.2.2:8000`.
+
+### Builds do app (EAS)
 
 ```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env             # configure as chaves (ex.: LLM_API_KEY)
-uvicorn api.main:app --reload
-```
-
-### Com Docker
-
-```bash
-docker compose up --build
+pnpm dlx eas-cli login
+pnpm dlx eas-cli init                      # vincula o projeto à sua conta Expo
+pnpm dlx eas-cli build --profile development --platform android   # dev client
+pnpm dlx eas-cli build --profile production --platform all        # lojas
 ```
 
 ---

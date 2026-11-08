@@ -1,0 +1,71 @@
+[project]
+name = "burnless"
+version = "0.1.0"
+description = "API do Burnless"
+requires-python = ">=3.15"
+dependencies = [
+    "fastapi>=0.162.2",
+    # Sem uvicorn[standard]: watchfiles ainda não tem wheel para Python 3.15.
+    "uvicorn>=0.54.0",
+    "uvloop>=0.23.0; sys_platform != 'win32'",
+    "httptools>=0.9.0",
+    "sqlalchemy[asyncio]>=2.1.8",
+    "asyncpg>=0.32.0",
+    "alembic>=1.20.1",
+    "pydantic>=2.14.3",
+    "pydantic-settings>=2.16.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.2.0",
+    "httpx2>=2.16.0",  # cliente do TestClient (o Starlette marcou o httpx como deprecated)
+    "ruff>=0.17.4",
+    "mypy>=2.4.1",
+    "import-linter>=2.16",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.7,<0.14"]
+build-backend = "uv_build"
+
+# ---------------------------------------------------------------- tooling
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py315"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "ASYNC", "RUF"]
+
+[tool.mypy]
+python_version = "3.15"
+strict = true
+mypy_path = "src"
+packages = ["burnless"]
+
+# ------------------------------------------- regras de arquitetura (DDD)
+[tool.importlinter]
+root_package = "burnless"
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Camadas horizontais: cada camada só depende das camadas abaixo"
+type = "layers"
+layers = [
+    "burnless.main",
+    "burnless.presentation",
+    "burnless.infrastructure",
+    "burnless.application",
+    "burnless.domain",
+]
+
+[[tool.importlinter.contracts]]
+name = "Domain e Application não conhecem frameworks"
+type = "forbidden"
+source_modules = ["burnless.domain", "burnless.application"]
+forbidden_modules = ["fastapi", "starlette", "sqlalchemy", "asyncpg", "pydantic_settings", "alembic"]
